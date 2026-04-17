@@ -734,47 +734,48 @@
             renderFeed(null, null);
         }
 
-        /* =========================================
-           6. SETTINGS, DASHBOARD & EDIT PROFILE
-           ========================================= */
-        function changeDisplayMode(mode) {
-            localStorage.setItem('settingDisplayMode', mode);
-            document.body.classList.remove('desktop-mode', 'mobile-mode');
-            if (mode !== 'responsive') document.body.classList.add(mode + '-mode');
+                /* --- DASHBOARD LOGIC --- */
+        function renderDashboard() {
+            const posts = JSON.parse(localStorage.getItem('posts'));
+            const myPosts = posts.filter(p => p.author === currentUser);
+
+            // Calculate stats
+            const totalPosts = myPosts.length;
+            const totalViews = myPosts.reduce((sum, p) => sum + (p.views || 0), 0);
+            const totalLikes = myPosts.reduce((sum, p) => sum + (p.likes ? p.likes.length : 0), 0);
+            const totalComments = myPosts.reduce((sum, p) => sum + (p.comments ? p.comments.length : 0), 0);
+
+            // Update UI
+            document.getElementById('dashboardStatsGrid').innerHTML = `
+                <div class="stat-card"><h3>Total Posts</h3><p>${totalPosts}</p></div>
+                <div class="stat-card"><h3>Total Views</h3><p>${totalViews}</p></div>
+                <div class="stat-card"><h3>Total Likes</h3><p>${totalLikes}</p></div>
+                <div class="stat-card"><h3>Total Comments</h3><p>${totalComments}</p></div>
+            `;
+
+            // Draw Chart
+            const ctx = document.getElementById('dashboardChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            const recentPosts = myPosts.slice(-5); // Get last 5 posts
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: recentPosts.length > 0 ? recentPosts.map(p => p.topic.substring(0, 15) + "...") : ["No Posts Yet"],
+                    datasets: [
+                        { label: 'Views', data: recentPosts.map(p => p.views || 0), backgroundColor: '#1c2541' },
+                        { label: 'Likes', data: recentPosts.map(p => p.likes ? p.likes.length : 0), backgroundColor: '#66b2ff' },
+                        { label: 'Comments', data: recentPosts.map(p => p.comments ? p.comments.length : 0), backgroundColor: '#8ab4f8' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#e0e0e0' } }, title: { display: true, text: 'Recent Posts', color: '#fff' } },
+                    scales: { y: { ticks: { color: '#b0b3b8', stepSize: 1 }, grid: { color: '#111522' } }, x: { ticks: { color: '#b0b3b8' }, grid: { color: '#111522' } } }
+                }
+            });
         }
-        function changeFeedLayout(layout) {
-            localStorage.setItem('settingFeedLayout', layout);
-            const feedContainer = document.getElementById('feedGrid');
-            feedContainer.classList.remove('grid-layout', 'facebook-layout');
-            feedContainer.classList.add(layout + '-layout');
-        }
 
-        function renderMyProfile() {
-            let me = JSON.parse(localStorage.getItem('users')).find(u => u.username === currentUser);
-            document.getElementById('profDisplayName').value = me.displayName || me.username;
-            document.getElementById('profBio').value = me.bio || '';
-            document.getElementById('profDesc').value = me.description || '';
-        }
-
-        document.getElementById('profileForm').onsubmit = async (e) => {
-            e.preventDefault();
-            let users = JSON.parse(localStorage.getItem('users'));
-            let meIndex = users.findIndex(u => u.username === currentUser);
-
-            users[meIndex].displayName = document.getElementById('profDisplayName').value.trim();
-            users[meIndex].bio = document.getElementById('profBio').value.trim();
-            users[meIndex].description = document.getElementById('profDesc').value.trim();
-
-            const pFile = document.getElementById('profPicInput').files[0];
-            const cFile = document.getElementById('coverPicInput').files[0];
-
-            if (pFile) users[meIndex].profilePic = await resizeImage(pFile, 300, 300);
-            if (cFile) users[meIndex].coverPic = await resizeImage(cFile, 800, 400);
-
-            localStorage.setItem('users', JSON.stringify(users));
-            alert("Profile Saved!");
-            location.reload(); 
-        };
     </script>
 </body>
 </html>
